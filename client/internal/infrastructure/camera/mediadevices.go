@@ -5,6 +5,10 @@ import (
 
 	"github.com/pion/mediadevices"
 	_ "github.com/pion/mediadevices/pkg/driver/camera" // Регистрируем драйвер камеры
+
+	// Регистрируем кодеки для видео
+	// "github.com/pion/mediadevices/pkg/codec/vpx"  // VP8 кодек
+	"github.com/pion/mediadevices/pkg/codec/x264" // H264 кодек
 	"github.com/pion/mediadevices/pkg/prop"
 
 	"webcam-transfer/client/internal/application"
@@ -41,9 +45,28 @@ func (m *MediaDevicesManager) ListDevices() ([]domain.VideoDevice, error) {
 
 // OpenCamera открывает камеру с заданными параметрами
 func (m *MediaDevicesManager) OpenCamera(config domain.VideoConfig) (domain.VideoTrack, error) {
-	// Настройка кодека H.264
-	// Вместо прямого использования x264, используем опцию VP8 из базового пакета
-	// Это позволит нам снизить зависимость от внешних библиотек
+	// Настройка опций видеокодирования
+	var codecSelector *mediadevices.CodecSelector
+
+	// Создаем селектор кодеков
+	// vpxParams, err := vpx.NewVP8Params()
+	// if err == nil {
+	// 	vpxParams.BitRate = int(config.BitRate)
+	// 	codecSelector = mediadevices.NewCodecSelector(
+	// 		mediadevices.WithVideoEncoders(&vpxParams),
+	// 	)
+	// // }
+
+	// Если VP8 недоступен, попробуем H264
+	if codecSelector == nil {
+		x264Params, err := x264.NewParams()
+		if err == nil {
+			x264Params.BitRate = int(config.BitRate)
+			codecSelector = mediadevices.NewCodecSelector(
+				mediadevices.WithVideoEncoders(&x264Params),
+			)
+		}
+	}
 
 	// Настройка захвата
 	constraints := mediadevices.MediaStreamConstraints{
@@ -57,6 +80,7 @@ func (m *MediaDevicesManager) OpenCamera(config domain.VideoConfig) (domain.Vide
 				c.DeviceID = prop.String(config.DeviceID)
 			}
 		},
+		Codec: codecSelector,
 	}
 
 	// Пробуем получить медиа поток
@@ -73,6 +97,7 @@ func (m *MediaDevicesManager) OpenCamera(config domain.VideoConfig) (domain.Vide
 					c.DeviceID = prop.String(config.DeviceID)
 				}
 			},
+			Codec: codecSelector,
 		}
 
 		mediaStream, err = mediadevices.GetUserMedia(constraints)

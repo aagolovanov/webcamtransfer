@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"errors"
+	"fmt"
 	"sync"
 
 	"webcam-transfer/client/internal/domain"
@@ -66,6 +67,7 @@ func (s *WebcamService) StartCapture(config domain.VideoConfig) error {
 	s.streamContext, s.cancelFunc = context.WithCancel(context.Background())
 
 	go func() {
+		fmt.Println(s.streamContext, track, config)
 		err := s.streamManager.StartStreaming(s.streamContext, track, config)
 		if err != nil {
 			s.logger.Error("Ошибка стриминга: %v", err)
